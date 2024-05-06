@@ -1,0 +1,11 @@
+playwright
+python-dotenv
+streamlit
+openpyxl
+pandas
+streamlit-option-menu
+xlsxwriter
+streamlit-lottie
+streamlit-aggrid
+streamlit-extras
+requests

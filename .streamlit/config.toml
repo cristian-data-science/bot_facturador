@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#00BFFF" # Coral brillante como acento distintivo
+backgroundColor = "#101820" # Azul grisáceo oscuro para fondo neutro
+secondaryBackgroundColor = "#34495E" # Azul grisáceo ligeramente más claro para contraste
+textColor = "#ECF0F1" # Casi blanco para texto destacado
+font = "sans serif"

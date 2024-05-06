@@ -1,0 +1,10 @@
+venv
+.env
+__pycache__
+api_odata_msft.ipynb
+formato_tabular.xlsx
+ReporteEmitidos_Det.xls
+test_code.ipynb
+app.py
+funcs.py
+trace.zip
