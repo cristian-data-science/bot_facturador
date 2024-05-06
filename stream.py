@@ -22,15 +22,12 @@ loti2= "https://lottie.host/eaa313d1-01a3-4e07-b3ee-93a67caa556f/GOxMTnclAj.json
 lot2= load_lottieurl(loti2)
 
 
-
 def run_playwright_script():
-    # Ruta al ejecutable de Python dentro del entorno virtual
-    venv_python_path = "C:/Users/cguti/OneDrive - Patagonia/Cristian/git/playwright_proyects/facturador_compras/venv/Scripts/python.exe"
     # Ruta al script app.py que deseas ejecutar
-    script_path = "C:/Users/cguti/OneDrive - Patagonia/Cristian/git/playwright_proyects/facturador_compras/app_async.py"
+    script_path = "app_async.py"
     
     # Ejecutar el script y capturar la salida
-    result = subprocess.run([venv_python_path, script_path], capture_output=True, text=True)
+    result = subprocess.run(["streamlit", "run", script_path], capture_output=True, text=True)
     
     # Devolver la salida estándar y la salida de error estándar
     return result.stdout, result.stderr
