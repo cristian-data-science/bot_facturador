@@ -4,11 +4,16 @@ from funcs_async import download_report, login_d365, process_report
 # Cambiar el import a la versión asíncrona de Playwright
 from playwright.async_api import async_playwright
 import os
+import streamlit as st
 
 async def main():
     load_dotenv()
-    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("URL"), os.getenv("USER"), os.getenv("PASS"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
+    # env secrets
+    #url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("URL"), os.getenv("USER"), os.getenv("PASS"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
     
+    # streamlit secrets
+    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = st.secrets["URL"], st.secrets["USER"], st.secrets["PASS"], st.secrets["url_blueline_prod"], st.secrets["user_blueline"], st.secrets["pass_blueline"]
+
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(headless=True)
         try:
