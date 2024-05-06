@@ -2,7 +2,7 @@ import streamlit as st
 import subprocess
 import requests
 
-#from streamlit_extras.add_vertical_space import add_vertical_space
+from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 from streamlit.components.v1 import html
@@ -60,7 +60,7 @@ def main():
                                icons=['house', 'bi bi-upload', 'bi bi-download'],
                                menu_icon="cast", default_index=0)
 
-        #add_vertical_space(3)
+        add_vertical_space(3)
         st.write('Made with ❤️ by [Criss](https://github.com/cristian-data-science)')
 
     if selected == "Home":
