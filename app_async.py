@@ -1,30 +1,40 @@
 import asyncio
 from dotenv import load_dotenv
 from funcs_async import download_report, login_d365, process_report
-# Cambiar el import a la versión asíncrona de Playwright
 from playwright.async_api import async_playwright
 import os
-import streamlit as st
+import argparse
 
-async def main():
+async def run_task(task_func, url, user, password, playwright):
+    browser = await playwright.chromium.launch(headless=False)
+    try:
+        await task_func(playwright, url, user, password, browser)
+    finally:
+        await browser.close()
+
+async def main(task_name):
     load_dotenv()
-    # env secrets
-    #url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("URL"), os.getenv("USER"), os.getenv("PASS"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
-    
-    # streamlit secrets
-    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = st.secrets["URL"], st.secrets["USER"], st.secrets["PASS"], st.secrets["url_blueline_prod"], st.secrets["user_blueline"], st.secrets["pass_blueline"]
+    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("url_erp_test"), os.getenv("USER_CRIS"), os.getenv("PASS_CRIS"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
+
+    task_map = {
+        'download_report': (download_report, url_blueline, user_blueline, pass_bluline),
+        'login_d365': (login_d365, url_erp, user_erp, passw_erp),
+        'process_report': (process_report,)  # Asume que process_report no necesita navegador ni argumentos adicionales
+    }
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(headless=True)
-        try:
-            # Ejecutar download_report y login_d365 en paralelo
-            await asyncio.gather(
-                download_report(playwright, url_blueline, user_blueline, pass_bluline, browser),
-                #login_d365(playwright, url_erp, user_erp, passw_erp, browser)
-            )
-        finally:
-            process_report()
-            await browser.close()
+        if task_name in ['download_report', 'login_d365']:
+            func, url, user, passw = task_map[task_name]
+            await run_task(func, url, user, passw, playwright)
+        elif task_name == 'process_report':
+            func = task_map[task_name][0]
+            func()  # Ejecutar funciones que no necesitan navegador
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description='Run specific tasks with Playwright.')
+    parser.add_argument('task', choices=['download_report', 'login_d365', 'process_report'], help='The task to run')
+    args = parser.parse_args()
+    asyncio.run(main(args.task))
+
+
+
