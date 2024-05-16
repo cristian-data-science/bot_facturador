@@ -6,7 +6,7 @@ import os
 import argparse
 
 async def run_task(task_func, url, user, password, playwright):
-    browser = await playwright.chromium.launch(headless=False)
+    browser = await playwright.chromium.launch(headless=True)
     try:
         await task_func(playwright, url, user, password, browser)
     finally:
@@ -14,7 +14,7 @@ async def run_task(task_func, url, user, password, playwright):
 
 async def main(task_name):
     load_dotenv()
-    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("url_erp_test"), os.getenv("USER_CRIS"), os.getenv("PASS_CRIS"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
+    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("url_erp_test"), os.getenv("USER_DIEGO"), os.getenv("PASS_DIEGO"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
 
     task_map = {
         'download_report': (download_report, url_blueline, user_blueline, pass_bluline),

@@ -2,12 +2,11 @@ from datetime import date, timedelta
 import pandas as pd
 import requests
 import asyncio
-from datetime import date, timedelta
-import pandas as pd
 from dotenv import load_dotenv
 import os
 import streamlit as st
 import time
+import tempfile
 
 load_dotenv()
 
@@ -19,11 +18,15 @@ SCOPE_URL = os.getenv("SCOPE_URL")
 async def login_d365(playwright, url, user, passw, browser):
     context = await browser.new_context()
     await context.tracing.start(screenshots=True, snapshots=True, sources=False)
+
     
     page = await context.new_page()
+    # Ajustar el tamaño de la ventana a 1920x1080 (Full HD)
+    await page.set_viewport_size({"width": 1400, "height": 850})
     try:
         await page.goto(url)
         await asyncio.sleep(2)
+
         await page.wait_for_selector('input[name="loginfmt"]', state="visible")
         await page.fill('input[name="loginfmt"]', user)
         await page.press('input[name="loginfmt"]', 'Enter')
@@ -35,22 +38,186 @@ async def login_d365(playwright, url, user, passw, browser):
         await page.click('input[name="DontShowAgain"]')
         await page.click('input[type="submit"]')
 
+        
+
     except Exception as e:
         print(f"Error: {e}")
-    await context.tracing.stop(path=os.path.join(os.getcwd(), 'trace.zip'))
+    
+    temp_dir = tempfile.gettempdir()
+    trace_file_path = os.path.join(temp_dir, 'trace.zip')
+    await context.tracing.stop(path=trace_file_path)
 
-    await asyncio.sleep(2)
-    await page.get_by_label("Buscar").click()
-    await page.wait_for_selector('role=textbox[name="Buscar una página"]', state='visible')
-    await page.get_by_role("textbox", name="Buscar una página").fill("todos los pedidos de com")
+    
 
-    await page.wait_for_selector('role=option[name="Todos los pedidos de compra Proveedores > Pedidos de compra"]', state='visible')
-    await page.get_by_role("option", name="Todos los pedidos de compra Proveedores > Pedidos de compra").click()
-    await asyncio.sleep(2)
+    #leer folios no creados en una sola linea
+    temp_dir = tempfile.gettempdir()
+    folios_no_creados = pd.read_excel(os.path.join(temp_dir, 'folios_nocreados.xlsx'))
+    folios_no_creados = folios_no_creados['Folio'].tolist()
+    # order to minor to major
+    folios_no_creados.sort()
 
-    await page.wait_for_selector('role=button[name=" Nuevo"]', state='visible')
-    await page.get_by_role("button", name=" Nuevo").click()    
-    await asyncio.sleep(10)
+
+
+    for folio in folios_no_creados:
+        #await asyncio.sleep(2)
+        print(f"Folio {folio} creado \n")
+        await asyncio.sleep(2)
+        
+        await page.mouse.move(0, 50)
+        await page.get_by_label("Buscar", exact=True).click()
+        await page.wait_for_selector('role=textbox[name="Buscar una página"]', state='visible')
+        await page.get_by_role("textbox", name="Buscar una página").fill("todos los pedidos de com")
+
+        await page.wait_for_selector('role=option[name="Todos los pedidos de compra Proveedores > Pedidos de compra"]', state='visible')
+        await page.get_by_role("option", name="Todos los pedidos de compra Proveedores > Pedidos de compra").click()
+        await asyncio.sleep(1)
+        await page.keyboard.press("Enter")
+
+        await page.wait_for_selector('role=button[name=" Nuevo"]', state='visible')
+        await page.mouse.move(0, 50)
+        await page.get_by_role("button", name=" Nuevo").click()
+        await page.get_by_label("Crear pedido de compra").get_by_label("Cuenta de proveedor").click()
+
+        # leer lineas a crear
+        lineas_a_crear = pd.read_excel(os.path.join(temp_dir, 'lineas_a_crear.xlsx'))
+        # filtrar lineas a crear por folio
+        lineas_folio = lineas_a_crear[lineas_a_crear['FOLIO'] == folio].copy()
+
+        # obtener el rut receptor de lineas_folio
+        rut_receptor = lineas_folio['RUT RECEPTOR'].iloc[0]
+        
+
+        await page.get_by_label("Crear pedido de compra").get_by_label("Cuenta de proveedor").fill(rut_receptor)
+
+        await page.get_by_label("Sitio").click()
+        await page.get_by_label("Sitio").fill("01")
+
+        await page.locator('input[name="PurchTable_InventLocationId"][role="combobox"][type="text"]').click()
+
+
+
+        await page.locator('input[name="PurchTable_InventLocationId"][role="combobox"][type="text"]').press("CapsLock")
+        await page.locator('input[name="PurchTable_InventLocationId"][role="combobox"][type="text"]').fill("OF.CENTRAL")
+
+
+        # obtener fecha de folio actual en las lineas
+
+        lineas_folio.loc[:, 'FECHA EMISION'] = pd.to_datetime(lineas_folio['FECHA EMISION'], errors='coerce')
+
+        fecha_folio = lineas_folio['FECHA EMISION'].iloc[0].strftime('%d/%m/%Y')
+
+
+
+
+
+
+
+        await page.get_by_role("combobox", name="Fecha contable").nth(0).click()
+        await page.get_by_role("combobox", name="Fecha contable").nth(0).fill("")
+        await page.get_by_role("combobox", name="Fecha contable").nth(0).fill(fecha_folio)
+        #await asyncio.sleep(5)
+
+        # Hacer scroll hacia abajo
+        await page.evaluate("window.scrollBy(0, 100)")
+
+        # Interactuar con el primer combobox "Fecha de recepción solicitada"
+        await page.get_by_role("combobox", name="Fecha de recepción solicitada").nth(1).click()
+        await page.get_by_role("combobox", name="Fecha de recepción solicitada").nth(1).fill(fecha_folio)
+        #await asyncio.sleep(5)
+        # press alt + enter
+        await page.keyboard.press("Alt+Enter")
+
+        # esperar 2 segundos
+        await asyncio.sleep(2)
+
+        await page.get_by_role("button", name=" Quitar").click()
+
+
+        # hacer un for para cada linea del folio
+        contador = 0
+
+        for index, row in lineas_folio.iterrows():
+            # Haz clic en el botón para agregar línea
+            await page.get_by_role("button", name=" Agregar línea").click()
+            await asyncio.sleep(2)
+
+            # Selecciona y llena el campo de código de artículo usando el contador
+            await page.get_by_label("Código de artículo").nth(contador).click()
+            await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
+            await asyncio.sleep(1)
+            await page.keyboard.press("Enter")
+            await asyncio.sleep(1)
+            # envair por teclado tecla tab 10 veces
+
+            
+            await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
+            await asyncio.sleep(1)
+            await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
+            
+            # borrar la cantidad actual con suprimir
+            keys = ["Delete"] * 10 + ["Backspace"] * 10
+            for key in keys:
+                await page.keyboard.press(key)
+                await asyncio.sleep(0.1)
+            await page.keyboard.press("Enter")
+            
+            # ingresar cantidad str(row['CANTIDAD']) por teclado
+            await page.keyboard.type(str(row['CANTIDAD']))
+            await page.keyboard.press("Enter")
+            await asyncio.sleep(1)
+
+            await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchPriceGrid"]').click()
+
+            await asyncio.sleep(1)
+            await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchPriceGrid"]').click()
+
+            keys = ["Delete"] * 10 + ["Backspace"] * 10
+            for key in keys:
+                await page.keyboard.press(key)
+                await asyncio.sleep(0.1)
+
+            await page.keyboard.type(str(row['PRECIO']))
+            await asyncio.sleep(1)
+  
+            await page.keyboard.press("Enter")
+
+            
+            await page.get_by_role("gridcell", name="Ubicación Abrir").get_by_role("button").click()
+            await asyncio.sleep(1)
+            await page.get_by_label("Formularios de búsqueda").get_by_label("Ubicación", exact=True).click()
+
+
+
+            
+            # llenar con "GENERICA"
+            await page.keyboard.type("GENERICA")
+            await page.keyboard.press("Enter")
+
+            # Incrementa el contador
+            contador += 1
+
+            
+
+
+            """
+            await page.get_by_label("Precio unitario").nth(index).click()
+            await page.get_by_label("Precio unitario").nth(index).fill(row['PRECIO'])
+            await page.get_by_label("Total").nth(index).click()
+            await page.get_by_label("Total").nth(index).fill(row['TOTAL'])
+            await page.get_by_label("Descripción").nth(index).click()
+            await page.get_by_label("Descripción").nth(index).fill(row['DESCRIPCION'])
+            """
+            await asyncio.sleep(2)
+        
+
+
+        
+
+        #await asyncio.sleep(10)
+
+
+
+
 
 def rev_proveedor():
     pass
@@ -86,10 +253,12 @@ async def download_report(playwright, url, user, password, browser):
         download = await download_info.value
         download_path = await download.path()
 
-        await download.save_as(os.path.join(os.getcwd(), "ReporteEmitidos_Det.xls"))
+        temp_dir = tempfile.gettempdir()
+        await download.save_as(os.path.join(temp_dir, "ReporteEmitidos_Det.xls"))
 
 def process_report():
-    archivo_original = os.path.join(os.getcwd(), 'ReporteEmitidos_Det.xls')
+    temp_dir = tempfile.gettempdir()
+    archivo_original = os.path.join(temp_dir, 'ReporteEmitidos_Det.xls')
     df_original = pd.read_excel(archivo_original, header=None)
 
     facturas_index = df_original.index[df_original[0].notna() & df_original[0].astype(str).str.isnumeric()].tolist()
@@ -116,7 +285,7 @@ def process_report():
     df_transformado['TOTAL'] = df_transformado['PRECIO'] * df_transformado['CANTIDAD']
     df_transformado[['CANTIDAD', 'PRECIO', 'TOTAL']] = df_transformado[['CANTIDAD', 'PRECIO', 'TOTAL']].apply(pd.to_numeric, errors='coerce')
 
-    archivo_resultado_final = os.path.join(os.getcwd(), 'formato_tabular.xlsx')
+    archivo_resultado_final = os.path.join(temp_dir, 'formato_tabular.xlsx')
     df_transformado.to_excel(archivo_resultado_final, index=False)
 
 token_cache = {"token": None, "expiry": time.time()}
@@ -165,6 +334,13 @@ def verificar_rut(ruts):
                 st.success(f"El RUT {rut} está registrado como proveedor.")
             else:
                 st.error(f"El RUT {rut} no existe y fue eliminado.")
+                # eliminar la linea con el rut no existente del archivo de lineas de la carpeta tempral
+                temp_dir = tempfile.gettempdir()
+                lineas_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
+                lineas = pd.read_excel(lineas_path)
+                lineas = lineas[lineas["RUT RECEPTOR"] != rut]
+                lineas.to_excel(lineas_path, index=False)
+
         else:
             st.error(f"Error en la solicitud: {response.status_code}")
 
@@ -173,12 +349,14 @@ def verificar_folio_en_erp(folio):
     if not token:
         return f"Error al obtener el token para el folio {folio}"
 
-    nombre_archivo = os.path.join(os.getcwd(), 'folios_nocreados.xlsx')
-    if os.path.exists(nombre_archivo):
-        os.remove(nombre_archivo)
-        st.success(f"Archivo anterior {nombre_archivo} borrado.")
+    temp_dir = tempfile.gettempdir()
+    nombre_archivo = os.path.join(temp_dir, 'folios_nocreados.xlsx')
 
-    folios_no_creados = []
+    # Inicializar un DataFrame vacío si no existe el archivo
+    if os.path.exists(nombre_archivo):
+        df_folios_no_creados = pd.read_excel(nombre_archivo)
+    else:
+        df_folios_no_creados = pd.DataFrame(columns=['Folio'])
 
     base_url = "https://patagonia-prod.operations.dynamics.com/data/VendInvoiceInfoTableBiEntities"
     filtro = f"$filter=Num eq '46-{folio}'"
@@ -193,17 +371,15 @@ def verificar_folio_en_erp(folio):
     if response.status_code == 200:
         datos = response.json()
         if datos['value']:
-            return st.success(f"El folio 46-{folio} ya está creado y facturado en el diario de compras.")
+            st.success(f"El folio 46-{folio} ya está creado y facturado en el diario de compras.")
+            return f"El folio 46-{folio} ya está creado y facturado en el diario de compras."
         else:
-            return st.error(f"El folio 46-{folio} no está creado en el ERP.")
-            folios_no_creados.append(folio)
+            # Crear un nuevo DataFrame con el folio no creado y concatenarlo al DataFrame existente
+            nuevo_folio_df = pd.DataFrame({'Folio': [folio]})
+            df_folios_no_creados = pd.concat([df_folios_no_creados, nuevo_folio_df], ignore_index=True)
+            df_folios_no_creados.to_excel(nombre_archivo, index=False)
+            st.error(f"El folio 46-{folio} no está creado en el ERP.")
+            return f"El folio 46-{folio} no está creado en el ERP."
     else:
-        return st.error(f"Error en la consulta del folio {folio}: {response.text}")
-
-    if folios_no_creados:
-        df_folios_no_creados = pd.DataFrame(folios_no_creados, columns=['Folios No Creados'])
-        df_folios_no_creados.to_excel(nombre_archivo, index=False)
-        st.success(f"Folios no creados guardados en '{nombre_archivo}'.")
-
-    else:
-        st.info("No se creo ningún PAT porque los folios ya se encuentran facturados en el ERP.")
+        st.error(f"Error en la consulta del folio {folio}: {response.text}")
+        return f"Error en la consulta del folio {folio}: {response.text}"

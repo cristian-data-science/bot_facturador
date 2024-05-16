@@ -9,6 +9,7 @@ from streamlit_lottie import st_lottie
 from streamlit.components.v1 import html
 from time import sleep
 from funcs_async import verificar_rut, verificar_folio_en_erp
+import tempfile
 
 st.set_page_config(page_title="App Template", layout="wide")
 
@@ -83,9 +84,10 @@ def preparar_datos(col2, page_name):
                     matched_df = df_tabular[df_tabular["FOLIO"].isin(folios_list)]
                     matched_df = matched_df.drop(columns=['TRACKID', 'ESTADO PORTAL', 'ESTADO SII'])
                     st.write(matched_df)
-                    output_path = os.path.join(os.getcwd(), "lineas_blueline.xlsx")
+                    temp_dir = tempfile.gettempdir()
+                    output_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
                     matched_df.to_excel(output_path, index=False)
-                    st.write("Archivo 'lineas_blueline.xlsx' creado")
+                    st.write("Archivo 'lineas_blueline.xlsx' creado en la carpeta temporal")
                     matched_folios_count = matched_df["FOLIO"].nunique()
                     st.info(f"Se han encontrado {matched_folios_count} folios únicos en las líneas de pedido coincidentes en blueline.")
 
@@ -93,8 +95,19 @@ def validar_datos(col2, page_name):
     with col2:
         col2.title("Auto facturador de pedidos de compra")
         add_vertical_space(6)
-        blueline_path = os.path.join(os.getcwd(), "lineas_blueline.xlsx")
-        lineas = pd.read_excel(blueline_path)
+        
+        # Obtener la ruta de la carpeta temporal
+        temp_dir = tempfile.gettempdir()
+        blueline_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
+        
+        # Leer el archivo desde la carpeta temporal
+        if os.path.exists(blueline_path):
+            lineas = pd.read_excel(blueline_path)
+            
+        else:
+            st.error("El archivo 'lineas_blueline.xlsx' no se encontró en la carpeta temporal.")
+
+
         rut_receptor = lineas["RUT RECEPTOR"].nunique()
         st.info(f"Se han encontrado {rut_receptor} RUTs únicos en las lineas.")
 
@@ -106,26 +119,68 @@ def validar_datos(col2, page_name):
 def facturar(col2, page_name):
     with col2:
         col2.title("Auto facturador de pedidos de compra")
-        st.write("Antes de facturar, revisaremos que los folios no estén facturados en el ERP")
+        st.info("Antes de facturar revisaremos que los folios no estén facturados en el ERP")
+
+        temp_dir = tempfile.gettempdir()
+        blueline_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
+        folios_no_creados_path = os.path.join(temp_dir, 'folios_nocreados.xlsx')
 
         if st.button("Validar folios en ERP"):
-            blueline_path = os.path.join(os.getcwd(), "lineas_blueline.xlsx")
             lineas = pd.read_excel(blueline_path)
-            st.spinner('🚀 Revisando si las facturas ya están registradas...')
-            folios = lineas["FOLIO"].unique().tolist()
-            for folio in folios:
-                mensaje = verificar_folio_en_erp(folio)
 
-        with st.spinner('🚀 Iniciando la secuencia de recopilación de datos. Lanzamiento hacia Blueline en 3... 2... 1...'):
-            if st.button("Crear pedidos y facturar!"):
-                stdout, stderr = run_playwright_script("login_d365")
-                if stdout:
-                    st.text("Salida:")
-                    st.write(stdout)
-                    st.success('¡Aterrizaje exitoso! Los datos han sido capturados.')
-                if stderr:
-                    st.text("Errores:")
-                    st.error(stderr)
+            with st.spinner('🚀 Revisando si las facturas ya están registradas...'):
+                folios = lineas["FOLIO"].unique().tolist()
+
+                # Borrar archivo antiguo de folios no creados en la carpeta temporal
+                if os.path.exists(folios_no_creados_path):
+                    os.remove(folios_no_creados_path)
+
+                folios_no_creados = []
+                for folio in folios:
+                    mensaje = verificar_folio_en_erp(folio)
+                    if "no está creado" in mensaje.lower():
+                        folios_no_creados.append(folio)
+
+                if folios_no_creados:
+                    df_folios_no_creados = pd.DataFrame(folios_no_creados, columns=["Folio"])
+                    df_folios_no_creados.to_excel(folios_no_creados_path, index=False)
+                    st.info(f"Se encontraron {len(folios_no_creados)} folios no creados.")
+                    st.session_state.folios_no_creados_path = folios_no_creados_path
+
+        if 'folios_no_creados_path' in st.session_state:
+            if st.button("Crear pedidos no facturados!"):
+                with st.spinner('🚀 Iniciando la secuencia de recopilación de datos. Lanzamiento hacia Blueline en 3... 2... 1...'):
+                    # Paso 0: Borrar el archivo antiguo lineas_a_crear.xlsx si existe
+                    temp_dir = tempfile.gettempdir()
+                    lineas_a_crear_path = os.path.join(temp_dir, "lineas_a_crear.xlsx")
+                    if os.path.exists(lineas_a_crear_path):
+                        os.remove(lineas_a_crear_path)
+
+                    # Paso 1 y 2: Crear el archivo lineas_a_crear.xlsx con las líneas que coincidan con los folios no creados
+                    try:
+                        folios_no_creados_path = st.session_state.folios_no_creados_path
+                        df_folios_no_creados = pd.read_excel(folios_no_creados_path)
+                        folios_no_creados = df_folios_no_creados["Folio"].tolist()
+
+                        blueline_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
+                        lineas = pd.read_excel(blueline_path)
+                        lineas_a_crear = lineas[lineas["FOLIO"].isin(folios_no_creados)]
+                        lineas_a_crear.to_excel(lineas_a_crear_path, index=False)
+
+                        st.write(f"Archivo 'lineas_a_crear.xlsx' creado en la carpeta temporal: {lineas_a_crear_path}")
+                        st.info(f"Se han encontrado {len(lineas_a_crear)} líneas para los folios no creados en blueline.")
+                    except FileNotFoundError:
+                        st.error("No hay nada para facturar. Los pedidos ya estan creados en el ERP.")
+                        return
+                    # Ejecutar el script de Playwright después de crear el archivo
+                    stdout, stderr = run_playwright_script("login_d365")
+                    if stdout:
+                        st.text("Salida:")
+                        st.write(stdout)
+                        st.success('Se han factuados los pedidos de venta!')
+                    if stderr:
+                        st.text("Errores:")
+                        st.error(stderr)
 
 if __name__ == "__main__":
     main()
