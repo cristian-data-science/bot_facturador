@@ -156,14 +156,20 @@ async def login_d365(playwright, url, user, passw, browser):
             await page.get_by_label("Código de artículo").nth(contador).click()
             await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
             await asyncio.sleep(1)
-            await page.keyboard.press("Enter")
+            await page.keyboard.press("Tab")
+
+
 
             #await asyncio.sleep(1)
+            """await page.get_by_role("gridcell", name="Ubicación Abrir").get_by_role("button").click()
+            await asyncio.sleep(1)
             await page.get_by_role("gridcell", name="Ubicación Abrir").get_by_role("button").click()
+
+
             await asyncio.sleep(1)
-            await page.get_by_label("Formularios de búsqueda").get_by_label("Ubicación", exact=True).click()
+            await page.get_by_label("Formularios de búsqueda").locator('label:has-text("Ubicación")').first.click()
             await asyncio.sleep(1)
-            # llenar con "GENERICA"
+            # llenar con "GENERICA" """
             await page.keyboard.type("GENERICA")
             await page.keyboard.press("Enter")
 
