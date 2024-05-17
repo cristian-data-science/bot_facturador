@@ -7,6 +7,7 @@ import os
 import streamlit as st
 import time
 import tempfile
+import openpyxl
 
 load_dotenv()
 
@@ -57,10 +58,20 @@ async def login_d365(playwright, url, user, passw, browser):
     folios_no_creados.sort()
 
 
+    # carpeta temporal de sistema
+    temp_dir = tempfile.gettempdir()
+
+    pat_folios_creados = os.path.join(temp_dir, 'pat_folios_creados.xlsx')
+
+    # Eliminar el archivo si existe
+    if os.path.exists(pat_folios_creados):
+        os.remove(pat_folios_creados)
+    # Lista para almacenar los datos
+    datos = []
+
 
     for folio in folios_no_creados:
         #await asyncio.sleep(2)
-        print(f"Folio {folio} creado \n")
         await asyncio.sleep(2)
         
         await page.mouse.move(0, 50)
@@ -139,36 +150,36 @@ async def login_d365(playwright, url, user, passw, browser):
         for index, row in lineas_folio.iterrows():
             # Haz clic en el botón para agregar línea
             await page.get_by_role("button", name=" Agregar línea").click()
-            await asyncio.sleep(2)
+            #await asyncio.sleep(2)
 
             # Selecciona y llena el campo de código de artículo usando el contador
             await page.get_by_label("Código de artículo").nth(contador).click()
             await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
             await page.keyboard.press("Enter")
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
             # envair por teclado tecla tab 10 veces
 
             
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
             
             # borrar la cantidad actual con suprimir
             keys = ["Delete"] * 10 + ["Backspace"] * 10
             for key in keys:
                 await page.keyboard.press(key)
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.06)
             await page.keyboard.press("Enter")
             
             # ingresar cantidad str(row['CANTIDAD']) por teclado
             await page.keyboard.type(str(row['CANTIDAD']))
             await page.keyboard.press("Enter")
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
 
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchPriceGrid"]').click()
 
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchPriceGrid"]').click()
 
             keys = ["Delete"] * 10 + ["Backspace"] * 10
@@ -177,7 +188,7 @@ async def login_d365(playwright, url, user, passw, browser):
                 await asyncio.sleep(0.1)
 
             await page.keyboard.type(str(row['PRECIO']))
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
   
             await page.keyboard.press("Enter")
 
@@ -196,24 +207,99 @@ async def login_d365(playwright, url, user, passw, browser):
             # Incrementa el contador
             contador += 1
 
-            
-
-
-            """
-            await page.get_by_label("Precio unitario").nth(index).click()
-            await page.get_by_label("Precio unitario").nth(index).fill(row['PRECIO'])
-            await page.get_by_label("Total").nth(index).click()
-            await page.get_by_label("Total").nth(index).fill(row['TOTAL'])
-            await page.get_by_label("Descripción").nth(index).click()
-            await page.get_by_label("Descripción").nth(index).fill(row['DESCRIPCION'])
-            """
             await asyncio.sleep(2)
         
+        await page.get_by_role("button", name="Compra", exact=True).click()
+        await asyncio.sleep(1)
+        await page.get_by_role("button", name="Confirmar").click()
+        await page.wait_for_selector('text="Operación completada"', timeout=60000)
+
+        await page.get_by_role("button", name="Factura").click()
+        #await asyncio.sleep(1)  
+        await page.get_by_text("Factura", exact=True).nth(1).click()
+
+
+
+
+        #await asyncio.sleep(2)  
+        # Localizador con los atributos especificados
+        await page.get_by_role("combobox", name="Tipo de transacción").click()
+
+        #await asyncio.sleep(1)
+        await page.get_by_role("option", name="Local").click()
+
+
+        await page.get_by_label("Talonario").click()
+        await page.get_by_label("Talonario").fill("46")
+        #await asyncio.sleep(1)
+        await page.get_by_label("Número", exact=True).click()
+        # fill con folio en string en formato 46-FOLIO
+        await page.keyboard.type(f"46-{folio}")
+        await page.get_by_label("Descripción de factura").click()
+        ## llenar con "COMPRA WW BOT"
+        await page.keyboard.type("COMPRA WW BOT")
+        await page.keyboard.press("Enter")
+
+        await page.get_by_role("combobox", name="Fecha de recepción de la").nth(0).click()
+        await page.get_by_role("combobox", name="Fecha de recepción de la").nth(0).fill(fecha_folio)
+
+        await page.get_by_role("combobox", name="Fecha de la factura").click()
+        await page.get_by_role("combobox", name="Fecha de la factura").fill(fecha_folio)
+
+        await page.get_by_role("combobox", name="Fecha de registro de IVA de").click()
+        await page.get_by_role("combobox", name="Fecha de registro de IVA de").fill(fecha_folio)
+
+        await page.get_by_role("combobox", name="Fecha de registro", exact=True).click()
+        await page.get_by_role("combobox", name="Fecha de registro", exact=True).fill(fecha_folio)
+
+        await page.get_by_role("combobox", name="Fecha del registro del IVA").nth(0).click()
+        await page.get_by_role("combobox", name="Fecha del registro del IVA").nth(0).fill(fecha_folio)
+
+        await page.get_by_role("combobox", name="Fecha de vencimiento").click()
+        await page.get_by_role("combobox", name="Fecha de vencimiento").fill(fecha_folio)
+
+        
+        await asyncio.sleep(1)
+        # send tab
+        await page.keyboard.press("Tab")
+        #send fecha_folio
+        await page.keyboard.type(fecha_folio)
+
+
+
+
+        await page.get_by_role("button", name="Actualizar estado de").click()
+
+         
+        await asyncio.sleep(1)
+        await page.get_by_role("button", name="Registrar").click()
+
+        #await page.get_by_role("button", name="Factura").nth(1).click()
+  
+        await page.get_by_text("Factura", exact=True).nth(2).click()
+
+        
+        await asyncio.sleep(1)
+
+        pat = await page.locator('xpath=/html/body/div[2]/div/div[6]/div/form[3]/div[5]/div/div[2]/div[2]/div[2]/div[2]/div/div/div[2]/div/div[3]/div/div[2]/div/div/div/div[1]/div[3]/div/div/div[1]/div[2]/div/div[1]/div/div/div/div/div/div/input').get_attribute('value')
+        texto_factura = await page.locator('xpath=/html/body/div[2]/div/div[6]/div/form[3]/div[5]/div/div[2]/div[2]/div[2]/div[2]/div/div/div[2]/div/div[3]/div/div[2]/div/div/div/div[1]/div[3]/div/div/div[1]/div[2]/div/div[5]/div/div/div/div/div/div/input').get_attribute('value')
 
 
         
 
-        #await asyncio.sleep(10)
+        # Añadir los datos a la lista
+        datos.append({'pat': pat, 'folio': texto_factura, 'fecha_factura': fecha_folio})
+
+        # Crear un DataFrame a partir de la lista de datos
+        df = pd.DataFrame(datos)
+
+        # Guardar el DataFrame en un archivo Excel después de cada iteración
+        with pd.ExcelWriter(pat_folios_creados, engine='openpyxl', mode='a' if os.path.exists(pat_folios_creados) else 'w') as writer:
+            df.to_excel(writer, index=False)
+            #await asyncio.sleep(100000)
+
+    print("### Proceso finalizado ###")
+
 
 
 

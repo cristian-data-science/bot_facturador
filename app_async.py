@@ -6,7 +6,7 @@ import os
 import argparse
 
 async def run_task(task_func, url, user, password, playwright):
-    browser = await playwright.chromium.launch(headless=True)
+    browser = await playwright.chromium.launch(headless=False)
     try:
         await task_func(playwright, url, user, password, browser)
     finally:

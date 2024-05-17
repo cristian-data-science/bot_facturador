@@ -167,8 +167,8 @@ def facturar(col2, page_name):
                         lineas_a_crear = lineas[lineas["FOLIO"].isin(folios_no_creados)]
                         lineas_a_crear.to_excel(lineas_a_crear_path, index=False)
 
-                        st.write(f"Archivo 'lineas_a_crear.xlsx' creado en la carpeta temporal: {lineas_a_crear_path}")
-                        st.info(f"Se han encontrado {len(lineas_a_crear)} líneas para los folios no creados en blueline.")
+                        #st.write(f"Archivo 'lineas_a_crear.xlsx' creado en la carpeta temporal: {lineas_a_crear_path}")
+                        #st.info(f"Se han encontrado {len(lineas_a_crear)} líneas para los folios no creados en blueline.")
                     except FileNotFoundError:
                         st.error("No hay nada para facturar. Los pedidos ya estan creados en el ERP.")
                         return
@@ -177,10 +177,25 @@ def facturar(col2, page_name):
                     if stdout:
                         st.text("Salida:")
                         st.write(stdout)
-                        st.success('Se han factuados los pedidos de venta!')
+                        st.success('Se han factuados los siguientes pedidos de venta!')
+                        
+                            # leer desde temp_dir pat_folios_creados.xlsx
+                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.xlsx")
+                        folios_creados = pd.read_excel(pat_folios_creados)
+                        # mostrar df
+                        st.write(folios_creados)
+                        
+
                     if stderr:
-                        st.text("Errores:")
-                        st.error(stderr)
+                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.xlsx")
+                        folios_creados = pd.read_excel(pat_folios_creados)
+                        # mostrar df
+                        st.write("##Folios parcialmente creados##")   
+                        st.write(folios_creados)
+                       
+                        with st.expander("Mostrar errores"):
+                            st.write("Errores")
+                            st.error(stderr)
 
 if __name__ == "__main__":
     main()
