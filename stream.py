@@ -79,7 +79,7 @@ def preparar_datos(col2, page_name):
                 with st.spinner('🚀 Buscando líneas de pedido en blueline...'):
                     run_playwright_script("download_report")
                     run_playwright_script("process_report")
-
+                    temp_dir = tempfile.gettempdir()
                     tabular_path = os.path.join(temp_dir, "formato_tabular.xlsx")
                     df_tabular = pd.read_excel(tabular_path)
                     matched_df = df_tabular[df_tabular["FOLIO"].isin(folios_list)]
