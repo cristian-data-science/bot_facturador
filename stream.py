@@ -150,7 +150,7 @@ def facturar(col2, page_name):
 
         if 'folios_no_creados_path' in st.session_state:
             if st.button("Crear pedidos no facturados!"):
-                with st.spinner('🚀 Iniciando la secuencia de recopilación de datos. Lanzamiento hacia Blueline en 3... 2... 1...'):
+                with st.spinner('🚀 Iniciando la secuencia de recopilación de datos. Lanzamiento hacia el ERP en 3... 2... 1...'):
                     # Paso 0: Borrar el archivo antiguo lineas_a_crear.xlsx si existe
                     temp_dir = tempfile.gettempdir()
                     lineas_a_crear_path = os.path.join(temp_dir, "lineas_a_crear.xlsx")

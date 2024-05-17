@@ -155,10 +155,18 @@ async def login_d365(playwright, url, user, passw, browser):
             # Selecciona y llena el campo de código de artículo usando el contador
             await page.get_by_label("Código de artículo").nth(contador).click()
             await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
-            #await asyncio.sleep(1)
+            await asyncio.sleep(1)
             await page.keyboard.press("Enter")
+
             #await asyncio.sleep(1)
-            # envair por teclado tecla tab 10 veces
+            await page.get_by_role("gridcell", name="Ubicación Abrir").get_by_role("button").click()
+            await asyncio.sleep(1)
+            await page.get_by_label("Formularios de búsqueda").get_by_label("Ubicación", exact=True).click()
+            await asyncio.sleep(1)
+            # llenar con "GENERICA"
+            await page.keyboard.type("GENERICA")
+            await page.keyboard.press("Enter")
+
 
             
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
@@ -193,16 +201,7 @@ async def login_d365(playwright, url, user, passw, browser):
             await page.keyboard.press("Enter")
 
             
-            await page.get_by_role("gridcell", name="Ubicación Abrir").get_by_role("button").click()
-            await asyncio.sleep(1)
-            await page.get_by_label("Formularios de búsqueda").get_by_label("Ubicación", exact=True).click()
 
-
-
-            
-            # llenar con "GENERICA"
-            await page.keyboard.type("GENERICA")
-            await page.keyboard.press("Enter")
 
             # Incrementa el contador
             contador += 1
