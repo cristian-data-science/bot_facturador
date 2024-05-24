@@ -4,9 +4,11 @@ import requests
 import asyncio
 from dotenv import load_dotenv
 import os
+import csv
 import streamlit as st
 import time
 import tempfile
+from openpyxl import load_workbook
 import openpyxl
 
 load_dotenv()
@@ -44,10 +46,7 @@ async def login_d365(playwright, url, user, passw, browser):
     except Exception as e:
         print(f"Error: {e}")
     
-    temp_dir = tempfile.gettempdir()
-    trace_file_path = os.path.join(temp_dir, 'trace.zip')
-    await context.tracing.stop(path=trace_file_path)
-
+    
     
 
     #leer folios no creados en una sola linea
@@ -58,15 +57,15 @@ async def login_d365(playwright, url, user, passw, browser):
     folios_no_creados.sort()
 
 
-    # carpeta temporal de sistema
+
+    # Obtener una ruta en la carpeta temporal
     temp_dir = tempfile.gettempdir()
-
-    pat_folios_creados = os.path.join(temp_dir, 'pat_folios_creados.xlsx')
-
-    # Eliminar el archivo si existe
+    pat_folios_creados = os.path.join(temp_dir, 'pat_folios_creados.csv')
+    #borrar archivo si existe
     if os.path.exists(pat_folios_creados):
         os.remove(pat_folios_creados)
-    # Lista para almacenar los datos
+
+    # para gaurdar en el for
     datos = []
 
 
@@ -152,9 +151,15 @@ async def login_d365(playwright, url, user, passw, browser):
             await page.get_by_role("button", name=" Agregar línea").click()
             #await asyncio.sleep(2)
 
-            # Selecciona y llena el campo de código de artículo usando el contador
-            await page.get_by_label("Código de artículo").nth(contador).click()
-            await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
+            try:
+                # Selecciona y llena el campo de código de artículo usando el contador
+                await page.get_by_label("Código de artículo").nth(contador).click()
+            except Exception as e:
+                pass
+
+            await page.keyboard.type(row['CODIGO'])
+
+            #await page.get_by_label("Código de artículo").nth(contador).fill(row['CODIGO'])
             await asyncio.sleep(1)
             await page.keyboard.press("Tab")
 
@@ -180,10 +185,10 @@ async def login_d365(playwright, url, user, passw, browser):
             await page.locator(f'xpath=//*[@id="GridCell-{contador}-PurchLine_PurchQtyGrid"]').click()
             
             # borrar la cantidad actual con suprimir
-            keys = ["Delete"] * 10 + ["Backspace"] * 10
+            keys = ["Delete"] * 4 + ["Backspace"] * 4
             for key in keys:
                 await page.keyboard.press(key)
-                await asyncio.sleep(0.06)
+                await asyncio.sleep(0.2)
             await page.keyboard.press("Enter")
             
             # ingresar cantidad str(row['CANTIDAD']) por teclado
@@ -292,18 +297,27 @@ async def login_d365(playwright, url, user, passw, browser):
 
         
 
-        # Añadir los datos a la lista
         datos.append({'pat': pat, 'folio': texto_factura, 'fecha_factura': fecha_folio})
 
-        # Crear un DataFrame a partir de la lista de datos
-        df = pd.DataFrame(datos)
+        # Verificar si el archivo existe para determinar si se deben escribir los encabezados
+        file_exists = os.path.exists(pat_folios_creados)
 
-        # Guardar el DataFrame en un archivo Excel después de cada iteración
-        with pd.ExcelWriter(pat_folios_creados, engine='openpyxl', mode='a' if os.path.exists(pat_folios_creados) else 'w') as writer:
-            df.to_excel(writer, index=False)
-            #await asyncio.sleep(100000)
+        # Escribir datos en el archivo CSV
+        with open(pat_folios_creados, mode='a', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=['pat', 'folio', 'fecha_factura'])
+            
+            if not file_exists:
+                # Escribir encabezados si el archivo no existe
+                writer.writeheader()
+                
+            # Escribir los datos actuales
+            writer.writerow({'pat': pat, 'folio': texto_factura, 'fecha_factura': fecha_folio})
+
 
     print("### Proceso finalizado ###")
+    
+    # Cerrar el navegador
+    await browser.close()
 
 
 

@@ -1,4 +1,5 @@
 import os
+import csv
 import streamlit as st
 import subprocess
 import requests
@@ -10,6 +11,7 @@ from streamlit.components.v1 import html
 from time import sleep
 from funcs_async import verificar_rut, verificar_folio_en_erp
 import tempfile
+
 
 st.set_page_config(page_title="App Template", layout="wide")
 
@@ -150,7 +152,7 @@ def facturar(col2, page_name):
 
         if 'folios_no_creados_path' in st.session_state:
             if st.button("Crear pedidos no facturados!"):
-                with st.spinner('🚀 Iniciando la secuencia de recopilación de datos. Lanzamiento hacia el ERP en 3... 2... 1...'):
+                with st.spinner('🚀 Creando los pedidos de venta para los folios...'):
                     # Paso 0: Borrar el archivo antiguo lineas_a_crear.xlsx si existe
                     temp_dir = tempfile.gettempdir()
                     lineas_a_crear_path = os.path.join(temp_dir, "lineas_a_crear.xlsx")
@@ -158,21 +160,18 @@ def facturar(col2, page_name):
                         os.remove(lineas_a_crear_path)
 
                     # Paso 1 y 2: Crear el archivo lineas_a_crear.xlsx con las líneas que coincidan con los folios no creados
-                    try:
-                        folios_no_creados_path = st.session_state.folios_no_creados_path
-                        df_folios_no_creados = pd.read_excel(folios_no_creados_path)
-                        folios_no_creados = df_folios_no_creados["Folio"].tolist()
-
-                        blueline_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
-                        lineas = pd.read_excel(blueline_path)
-                        lineas_a_crear = lineas[lineas["FOLIO"].isin(folios_no_creados)]
-                        lineas_a_crear.to_excel(lineas_a_crear_path, index=False)
+                    
+                    folios_no_creados_path = st.session_state.folios_no_creados_path
+                    df_folios_no_creados = pd.read_excel(folios_no_creados_path)
+                    folios_no_creados = df_folios_no_creados["Folio"].tolist()
+                    blueline_path = os.path.join(temp_dir, "lineas_blueline.xlsx")
+                    lineas = pd.read_excel(blueline_path)
+                    lineas_a_crear = lineas[lineas["FOLIO"].isin(folios_no_creados)]
+                    lineas_a_crear.to_excel(lineas_a_crear_path, index=False)
 
                         #st.write(f"Archivo 'lineas_a_crear.xlsx' creado en la carpeta temporal: {lineas_a_crear_path}")
                         #st.info(f"Se han encontrado {len(lineas_a_crear)} líneas para los folios no creados en blueline.")
-                    except FileNotFoundError:
-                        st.error("No hay nada para facturar. Los pedidos ya estan creados en el ERP.")
-                        return
+                    
                     # Ejecutar el script de Playwright después de crear el archivo
                     stdout, stderr = run_playwright_script("login_d365")
                     if stdout:
@@ -181,16 +180,16 @@ def facturar(col2, page_name):
                         st.success('Se han factuados los siguientes pedidos de venta!')
                         
                             # leer desde temp_dir pat_folios_creados.xlsx
-                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.xlsx")
-                        folios_creados = pd.read_excel(pat_folios_creados)
+                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.csv")
+                        folios_creados = pd.read_csv(pat_folios_creados)
                         # mostrar df
                         st.write(folios_creados)
                         
 
                     if stderr:
-                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.xlsx")
-                        folios_creados = pd.read_excel(pat_folios_creados)
-                        # mostrar df
+                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.csv")
+                        folios_creados = pd.read_csv(pat_folios_creados)
+                        #mostrar df
                         st.write("##Folios parcialmente creados##")   
                         st.write(folios_creados)
                        

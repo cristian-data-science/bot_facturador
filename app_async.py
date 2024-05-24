@@ -14,7 +14,7 @@ async def run_task(task_func, url, user, password, playwright):
 
 async def main(task_name):
     load_dotenv()
-    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("url_erp_test"), os.getenv("USER_DIEGO"), os.getenv("PASS_DIEGO"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
+    url_erp, user_erp, passw_erp, url_blueline, user_blueline, pass_bluline = os.getenv("URL_PROD"), os.getenv("USER_DIEGO"), os.getenv("PASS_DIEGO"), os.getenv("url_blueline_prod"), os.getenv("user_blueline"), os.getenv("pass_blueline")
 
     task_map = {
         'download_report': (download_report, url_blueline, user_blueline, pass_bluline),
