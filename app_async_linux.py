@@ -1,9 +1,9 @@
 import asyncio
+import os
+import argparse
 from dotenv import load_dotenv
 from funcs_async import download_report, login_d365, process_report
 from playwright.async_api import async_playwright
-import os
-import argparse
 
 async def run_task(task_func, url, user, password, playwright):
     browser = await playwright.chromium.launch(headless=False)
@@ -39,5 +39,3 @@ if __name__ == "__main__":
     parser.add_argument('--environment_url', help='The environment URL variable name', required=False)
     args = parser.parse_args()
     asyncio.run(main(args.task, args.environment_url))
-
-

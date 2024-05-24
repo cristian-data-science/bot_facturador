@@ -26,11 +26,15 @@ lot1 = load_lottieurl(loti1)
 loti2= "https://lottie.host/eaa313d1-01a3-4e07-b3ee-93a67caa556f/GOxMTnclAj.json"
 lot2= load_lottieurl(loti2)
 
-def run_playwright_script(task_name):
+def run_playwright_script(task_name, environment_url=None):
     venv_python_path = os.path.join(os.getcwd(), "venv/Scripts/python.exe")
     script_path = os.path.join(os.getcwd(), "app_async.py")
-    
-    result = subprocess.run([venv_python_path, script_path, task_name], capture_output=True, text=True)
+
+    if environment_url:
+        result = subprocess.run([venv_python_path, script_path, task_name, '--environment_url', environment_url], capture_output=True, text=True)
+    else:
+        result = subprocess.run([venv_python_path, script_path, task_name], capture_output=True, text=True)
+
     return result.stdout, result.stderr
 
 def main():
@@ -134,7 +138,6 @@ def facturar(col2, page_name):
             with st.spinner('🚀 Revisando si las facturas ya están registradas...'):
                 folios = lineas["FOLIO"].unique().tolist()
 
-                # Borrar archivo antiguo de folios no creados en la carpeta temporal
                 if os.path.exists(folios_no_creados_path):
                     os.remove(folios_no_creados_path)
 
@@ -151,16 +154,25 @@ def facturar(col2, page_name):
                     st.session_state.folios_no_creados_path = folios_no_creados_path
 
         if 'folios_no_creados_path' in st.session_state:
+
+            environment = st.radio(
+                    "Selecciona el ambiente de facturación:",
+                    ("Testing", "Producción")
+                )
+
+            environment_url = "url_erp_test" if environment == "Testing" else "URL_PROD"
+            
+
             if st.button("Crear pedidos no facturados!"):
+
+                
+
                 with st.spinner('🚀 Creando los pedidos de venta para los folios...'):
-                    # Paso 0: Borrar el archivo antiguo lineas_a_crear.xlsx si existe
                     temp_dir = tempfile.gettempdir()
                     lineas_a_crear_path = os.path.join(temp_dir, "lineas_a_crear.xlsx")
                     if os.path.exists(lineas_a_crear_path):
                         os.remove(lineas_a_crear_path)
 
-                    # Paso 1 y 2: Crear el archivo lineas_a_crear.xlsx con las líneas que coincidan con los folios no creados
-                    
                     folios_no_creados_path = st.session_state.folios_no_creados_path
                     df_folios_no_creados = pd.read_excel(folios_no_creados_path)
                     folios_no_creados = df_folios_no_creados["Folio"].tolist()
@@ -169,33 +181,36 @@ def facturar(col2, page_name):
                     lineas_a_crear = lineas[lineas["FOLIO"].isin(folios_no_creados)]
                     lineas_a_crear.to_excel(lineas_a_crear_path, index=False)
 
-                        #st.write(f"Archivo 'lineas_a_crear.xlsx' creado en la carpeta temporal: {lineas_a_crear_path}")
-                        #st.info(f"Se han encontrado {len(lineas_a_crear)} líneas para los folios no creados en blueline.")
+
+
                     
-                    # Ejecutar el script de Playwright después de crear el archivo
-                    stdout, stderr = run_playwright_script("login_d365")
+                    stdout, stderr = run_playwright_script("login_d365", environment_url)
                     if stdout:
                         st.text("Salida:")
                         st.write(stdout)
                         st.success('Se han factuados los siguientes pedidos de venta!')
                         
-                            # leer desde temp_dir pat_folios_creados.xlsx
                         pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.csv")
                         folios_creados = pd.read_csv(pat_folios_creados)
-                        # mostrar df
                         st.write(folios_creados)
                         
-
                     if stderr:
-                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.csv")
-                        folios_creados = pd.read_csv(pat_folios_creados)
-                        #mostrar df
-                        st.write("##Folios parcialmente creados##")   
-                        st.write(folios_creados)
-                       
-                        with st.expander("Mostrar errores"):
-                            st.write("Errores")
-                            st.error(stderr)
+                        try:
+                            folios_creados = pd.read_csv(pat_folios_creados)
+                            st.write("##Folios parcialmente creados##")
+                            st.write(folios_creados)
+                            # borrar archivo folios creados
+                            os.remove(pat_folios_creados)
+                            
+                            with st.expander("Mostrar errores"):
+                                st.write("Errores")
+                                st.error(stderr)
+                        except:
+                            st.error("Ocurrió un error al intentar crear los pedidos de venta")
+                            with st.expander("Mostrar errores"):
+                                st.write("Errores")
+                                st.error(stderr)
+
 
 if __name__ == "__main__":
     main()
