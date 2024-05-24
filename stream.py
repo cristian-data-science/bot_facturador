@@ -11,6 +11,7 @@ from streamlit.components.v1 import html
 from time import sleep
 from funcs_async import verificar_rut, verificar_folio_en_erp
 import tempfile
+import platform
 
 
 st.set_page_config(page_title="App Template", layout="wide")
@@ -27,9 +28,15 @@ loti2= "https://lottie.host/eaa313d1-01a3-4e07-b3ee-93a67caa556f/GOxMTnclAj.json
 lot2= load_lottieurl(loti2)
 
 def run_playwright_script(task_name, environment_url=None):
-    venv_python_path = os.path.join(os.getcwd(), "venv/Scripts/python.exe")
+    # Detectar el sistema operativo
+    if platform.system() == "Windows":
+        venv_python_path = os.path.join(os.getcwd(), "venv/Scripts/python.exe")
+    else:  # Asumimos que cualquier otro sistema operativo es de la familia Unix (Linux, MacOS)
+        venv_python_path = os.path.join(os.getcwd(), "venv/bin/python")
+    
     script_path = os.path.join(os.getcwd(), "app_async.py")
 
+    # Ejecutar el script con el entorno virtual apropiado
     if environment_url:
         result = subprocess.run([venv_python_path, script_path, task_name, '--environment_url', environment_url], capture_output=True, text=True)
     else:
