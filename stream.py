@@ -202,21 +202,17 @@ def facturar(col2, page_name):
                         st.write(folios_creados)
                         
                     if stderr:
-                        try:
-                            folios_creados = pd.read_csv(pat_folios_creados)
-                            st.write("##Folios parcialmente creados##")
-                            st.write(folios_creados)
-                            # borrar archivo folios creados
-                            os.remove(pat_folios_creados)
-                            
-                            with st.expander("Mostrar errores"):
-                                st.write("Errores")
-                                st.error(stderr)
-                        except:
-                            st.error("Ocurrió un error al intentar crear los pedidos de venta")
-                            with st.expander("Mostrar errores"):
-                                st.write("Errores")
-                                st.error(stderr)
+                        
+                        folios_creados = pd.read_csv(pat_folios_creados)
+                        st.write("##Folios parcialmente creados##")
+                        st.write(folios_creados)
+                        # borrar archivo folios creados
+                        os.remove(pat_folios_creados)
+                        
+                        with st.expander("Mostrar errores"):
+                            st.write("Errores")
+                            st.error(stderr)
+                        
 
 
 if __name__ == "__main__":
