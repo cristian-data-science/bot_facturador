@@ -192,9 +192,9 @@ async def login_d365(playwright, url, user, passw, browser):
             await page.keyboard.press("Enter")
             
             # ingresar cantidad str(row['CANTIDAD']) por teclado
-            await assyncio.sleep(1)
+            await asyncio.sleep(1)
             await page.keyboard.type(str(row['CANTIDAD']))
-            await assyncio.sleep(1)
+            await asyncio.sleep(1)
             await page.keyboard.press("Enter")
             #await asyncio.sleep(1)
 

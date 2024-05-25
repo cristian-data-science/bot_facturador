@@ -202,7 +202,7 @@ def facturar(col2, page_name):
                         st.write(folios_creados)
                         
                     if stderr:
-                        
+                        pat_folios_creados = os.path.join(temp_dir, "pat_folios_creados.csv")
                         folios_creados = pd.read_csv(pat_folios_creados)
                         st.write("##Folios parcialmente creados##")
                         st.write(folios_creados)
